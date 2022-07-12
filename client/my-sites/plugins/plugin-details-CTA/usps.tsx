@@ -1,3 +1,4 @@
+import config from '@automattic/calypso-config';
 import {
 	PLAN_BUSINESS_MONTHLY,
 	PLAN_BUSINESS,
@@ -13,6 +14,7 @@ import { useTranslate } from 'i18n-calypso';
 import { useSelector } from 'react-redux';
 import { IntervalLength } from 'calypso/my-sites/marketplace/components/billing-interval-switcher/constants';
 import { isEligibleForProPlan } from 'calypso/my-sites/plans-comparison';
+import PluginDetailsSidebarUSP from 'calypso/my-sites/plugins/plugin-details-sidebar-usp';
 import usePluginsSupportText from 'calypso/my-sites/plugins/use-plugins-support-text/';
 import { getProductDisplayCost } from 'calypso/state/products-list/selectors';
 import { getSelectedSite } from 'calypso/state/ui/selectors';
@@ -24,7 +26,7 @@ const StyledUl = styled.ul`
 `;
 
 const StyledLi = styled.li`
-	color: var( --studio-gray-50 );
+	color: var( --studio-gray-80 );
 	font-size: 12px;
 	display: flex;
 	align-items: center;
@@ -40,6 +42,14 @@ const StyledLi = styled.li`
 	svg {
 		margin-right: 8px;
 	}
+
+	&.legacy {
+		color: var( --studio-gray-50 );
+	}
+`;
+
+const GreenGridicon = styled( Gridicon )`
+	color: var( --studio-green-50 );
 `;
 
 interface Props {
@@ -49,7 +59,57 @@ interface Props {
 	billingPeriod: IntervalLength;
 }
 
-const USPS: React.FC< Props > = ( {
+export const USPS: React.FC< Props > = ( {
+	shouldUpgrade,
+	isFreePlan,
+	isMarketplaceProduct,
+	billingPeriod,
+} ) => {
+	const translate = useTranslate();
+	const legacyVersion = ! config.isEnabled( 'plugins/plugin-details-layout' );
+
+	if ( legacyVersion ) {
+		return (
+			<LegacyUSPS
+				shouldUpgrade={ shouldUpgrade }
+				isFreePlan={ isFreePlan }
+				isMarketplaceProduct={ isMarketplaceProduct }
+				billingPeriod={ billingPeriod }
+			/>
+		);
+	}
+
+	if ( ! isMarketplaceProduct ) {
+		return null;
+	}
+
+	const filteredUSPS = [
+		translate( 'Plugin updates' ),
+		translate( '%(days)d-day money-back guarantee', {
+			args: { days: billingPeriod === IntervalLength.ANNUALLY ? 14 : 7 },
+		} ),
+	];
+
+	return (
+		<PluginDetailsSidebarUSP
+			id="marketplace-product"
+			title={ translate( 'Included with your purchase' ) }
+			description={
+				<StyledUl>
+					{ filteredUSPS.map( ( usp, i ) => (
+						<StyledLi key={ `usp-${ i }` }>
+							<GreenGridicon icon="checkmark" size={ 16 } />
+							<span>{ usp }</span>
+						</StyledLi>
+					) ) }
+				</StyledUl>
+			}
+			first
+		/>
+	);
+};
+
+export const PlanUSPS: React.FC< Props > = ( {
 	shouldUpgrade,
 	isFreePlan,
 	isMarketplaceProduct,
@@ -58,33 +118,16 @@ const USPS: React.FC< Props > = ( {
 	const translate = useTranslate();
 
 	const isAnnualPeriod = billingPeriod === IntervalLength.ANNUALLY;
-
-	const selectedSite = useSelector( getSelectedSite );
-	const requiredPlan = useSelector( ( state ) => {
-		if ( ! shouldUpgrade ) {
-			return '';
-		}
-
-		const plan = selectedSite?.plan;
-		let isLegacyPlan = false;
-		if ( typeof plan !== 'undefined' ) {
-			isLegacyPlan = isBlogger( plan ) || isPersonal( plan ) || isPremium( plan );
-		}
-
-		if ( ! isLegacyPlan && isMarketplaceProduct ) {
-			return PLAN_WPCOM_STARTER;
-		}
-
-		if ( ! isLegacyPlan && isEligibleForProPlan( state, selectedSite?.ID ) ) {
-			return PLAN_WPCOM_PRO;
-		}
-
-		return isAnnualPeriod ? PLAN_BUSINESS : PLAN_BUSINESS_MONTHLY;
-	} );
-
+	const supportText = usePluginsSupportText();
+	const requiredPlan = useRequiredPlan( isMarketplaceProduct, shouldUpgrade, isAnnualPeriod );
 	const planDisplayCost = useSelector( ( state ) => {
-		return getProductDisplayCost( state, requiredPlan );
+		return getProductDisplayCost( state, requiredPlan || '' );
 	} );
+
+	if ( ! shouldUpgrade ) {
+		return null;
+	}
+
 	let planText;
 	switch ( requiredPlan ) {
 		case PLAN_WPCOM_STARTER:
@@ -105,7 +148,62 @@ const USPS: React.FC< Props > = ( {
 			break;
 	}
 
+	const filteredUSPS = [
+		...( isFreePlan ? [ translate( 'Free domain for one year' ) ] : [] ),
+		...( requiredPlan === PLAN_WPCOM_STARTER ? [ translate( 'Payments collection' ) ] : [] ),
+		...( requiredPlan === PLAN_WPCOM_STARTER ? [ translate( '6GB of storage' ) ] : [] ),
+		...( requiredPlan !== PLAN_WPCOM_STARTER ? [ translate( 'Best-in-class hosting' ) ] : [] ),
+		...( requiredPlan !== PLAN_WPCOM_STARTER ? [ supportText ] : [] ),
+	];
+
+	return (
+		<PluginDetailsSidebarUSP
+			id="marketplace-plan"
+			title={ planText }
+			description={
+				<StyledUl>
+					{ filteredUSPS.map( ( usp, i ) => (
+						<StyledLi key={ `usps__-${ i }` }>
+							<GreenGridicon icon="checkmark" size={ 16 } />
+							<span>{ usp }</span>
+						</StyledLi>
+					) ) }
+				</StyledUl>
+			}
+			first
+		/>
+	);
+};
+
+function LegacyUSPS( { shouldUpgrade, isFreePlan, isMarketplaceProduct, billingPeriod }: Props ) {
+	const translate = useTranslate();
+
+	const isAnnualPeriod = billingPeriod === IntervalLength.ANNUALLY;
+	const requiredPlan = useRequiredPlan( isMarketplaceProduct, shouldUpgrade, isAnnualPeriod );
+	const planDisplayCost = useSelector( ( state ) => {
+		return getProductDisplayCost( state, requiredPlan || '' );
+	} );
 	const supportText = usePluginsSupportText();
+
+	let planText;
+	switch ( requiredPlan ) {
+		case PLAN_WPCOM_STARTER:
+			planText = translate( 'Included in the Starter plan (%s):', {
+				args: [ planDisplayCost ],
+			} );
+			break;
+		case PLAN_WPCOM_PRO:
+			planText = translate( 'Included in the Pro plan (%s):', {
+				args: [ planDisplayCost ],
+			} );
+			break;
+		case PLAN_BUSINESS:
+		case PLAN_BUSINESS_MONTHLY:
+			planText = translate( 'Included in the Business plan (%s):', {
+				args: [ planDisplayCost ],
+			} );
+			break;
+	}
 
 	const filteredUSPS = [
 		...( isMarketplaceProduct
@@ -195,13 +293,43 @@ const USPS: React.FC< Props > = ( {
 	return (
 		<StyledUl>
 			{ filteredUSPS.map( ( usp ) => (
-				<StyledLi key={ usp.id }>
+				<StyledLi key={ usp.id } className="usps__li legacy">
 					{ usp?.image }
 					<span className={ usp.className }>{ usp.text }</span>
 				</StyledLi>
 			) ) }
 		</StyledUl>
 	);
-};
+}
+
+function useRequiredPlan(
+	isMarketplaceProduct: boolean,
+	shouldUpgrade: boolean,
+	isAnnualPeriod: boolean
+) {
+	const selectedSite = useSelector( getSelectedSite );
+
+	return useSelector( ( state ) => {
+		if ( ! shouldUpgrade ) {
+			return '';
+		}
+
+		const plan = selectedSite?.plan;
+		let isLegacyPlan = false;
+		if ( typeof plan !== 'undefined' ) {
+			isLegacyPlan = isBlogger( plan ) || isPersonal( plan ) || isPremium( plan );
+		}
+
+		if ( ! isLegacyPlan && isMarketplaceProduct ) {
+			return PLAN_WPCOM_STARTER;
+		}
+
+		if ( ! isLegacyPlan && isEligibleForProPlan( state, selectedSite?.ID ) ) {
+			return PLAN_WPCOM_PRO;
+		}
+
+		return isAnnualPeriod ? PLAN_BUSINESS : PLAN_BUSINESS_MONTHLY;
+	} );
+}
 
 export default USPS;

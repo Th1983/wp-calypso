@@ -238,7 +238,7 @@ const PluginDetailsCTA = ( {
 				</div>
 			) }
 
-			{ ! isJetpackSelfHosted && (
+			{ legacyVersion && ! isJetpackSelfHosted && (
 				<USPS
 					shouldUpgrade={ shouldUpgrade }
 					isFreePlan={ isFreePlan }

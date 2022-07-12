@@ -1,12 +1,24 @@
 import config from '@automattic/calypso-config';
+import {
+	isFreePlanProduct,
+	FEATURE_INSTALL_PLUGINS,
+	WPCOM_FEATURES_INSTALL_PURCHASED_PLUGINS,
+} from '@automattic/calypso-products';
 import { useTranslate } from 'i18n-calypso';
+import { useSelector } from 'react-redux';
 import './style.scss';
 import eye from 'calypso/assets/images/marketplace/eye.svg';
 import support from 'calypso/assets/images/marketplace/support.svg';
 import wooLogo from 'calypso/assets/images/marketplace/woo-logo.svg';
 import { formatNumberMetric } from 'calypso/lib/format-number-compact';
+import { PlanUSPS, USPS } from 'calypso/my-sites/plugins/plugin-details-CTA/usps';
 import PluginDetailsSidebarUSP from 'calypso/my-sites/plugins/plugin-details-sidebar-usp';
 import usePluginsSupportText from 'calypso/my-sites/plugins/use-plugins-support-text/';
+import { getBillingInterval } from 'calypso/state/marketplace/billing-interval/selectors';
+import isSiteAutomatedTransfer from 'calypso/state/selectors/is-site-automated-transfer';
+import siteHasFeature from 'calypso/state/selectors/site-has-feature';
+import { isJetpackSite } from 'calypso/state/sites/selectors';
+import { getSelectedSite } from 'calypso/state/ui/selectors';
 
 const PluginDetailsSidebar = ( {
 	plugin: {
@@ -21,6 +33,19 @@ const PluginDetailsSidebar = ( {
 	const translate = useTranslate();
 
 	const legacyVersion = ! config.isEnabled( 'plugins/plugin-details-layout' );
+
+	const selectedSite = useSelector( getSelectedSite );
+	const isJetpack = useSelector( ( state ) => isJetpackSite( state, selectedSite?.ID ) );
+	const isAtomic = useSelector( ( state ) => isSiteAutomatedTransfer( state, selectedSite?.ID ) );
+	const isJetpackSelfHosted = selectedSite && isJetpack && ! isAtomic;
+	const billingPeriod = useSelector( getBillingInterval );
+	const isFreePlan = isFreePlanProduct( selectedSite?.plan );
+	const pluginFeature = isMarketplaceProduct
+		? WPCOM_FEATURES_INSTALL_PURCHASED_PLUGINS
+		: FEATURE_INSTALL_PLUGINS;
+	const shouldUpgrade =
+		useSelector( ( state ) => ! siteHasFeature( state, selectedSite?.ID, pluginFeature ) ) &&
+		! isJetpackSelfHosted;
 
 	const isWooCommercePluginRequired = requirements.plugins?.some(
 		( pluginName ) => pluginName === 'plugins/woocommerce'
@@ -89,6 +114,25 @@ const PluginDetailsSidebar = ( {
 					first
 				/>
 			) }
+
+			{ ! legacyVersion && (
+				<USPS
+					shouldUpgrade={ shouldUpgrade }
+					isFreePlan={ isFreePlan }
+					isMarketplaceProduct={ isMarketplaceProduct }
+					billingPeriod={ billingPeriod }
+				/>
+			) }
+
+			{ ! legacyVersion && (
+				<PlanUSPS
+					shouldUpgrade={ shouldUpgrade }
+					isFreePlan={ isFreePlan }
+					isMarketplaceProduct={ isMarketplaceProduct }
+					billingPeriod={ billingPeriod }
+				/>
+			) }
+
 			{ demo_url && (
 				<PluginDetailsSidebarUSP
 					id="demo"
