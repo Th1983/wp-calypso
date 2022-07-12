@@ -93,7 +93,7 @@ function CheckoutPending( {
 			page( failRedirectUrl );
 		};
 
-		if ( ! orderId && receiptId ) {
+		if ( receiptId && ! redirectTo?.includes( ':receiptId' ) ) {
 			didRedirect.current = true;
 			redirectWithInterpolatedReceipt( redirectTo, siteSlug, receiptId );
 			return;
