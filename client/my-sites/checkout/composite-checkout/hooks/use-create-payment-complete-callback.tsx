@@ -219,7 +219,11 @@ export default function useCreatePaymentCompleteCallback( {
 						domainName,
 						() => {
 							reloadCart();
-							redirectThroughPending( url, { siteSlug, orderId: transactionResult.order_id } );
+							redirectThroughPending( url, {
+								siteSlug,
+								orderId: transactionResult.order_id,
+								receiptId: transactionResult.receipt_id,
+							} );
 						},
 						reduxStore
 					);
@@ -248,12 +252,20 @@ export default function useCreatePaymentCompleteCallback( {
 				// We use window.location instead of page() so that the cookies are
 				// detected on fresh page load. Using page(url) will take us to the
 				// log-in page which we don't want.
-				absoluteRedirectThroughPending( url, { siteSlug, orderId: transactionResult.order_id } );
+				absoluteRedirectThroughPending( url, {
+					siteSlug,
+					orderId: transactionResult.order_id,
+					receiptId: transactionResult.receipt_id,
+				} );
 				return;
 			}
 
 			reloadCart();
-			redirectThroughPending( url, { siteSlug, orderId: transactionResult.order_id } );
+			redirectThroughPending( url, {
+				siteSlug,
+				orderId: transactionResult.order_id,
+				receiptId: transactionResult.receipt_id,
+			} );
 		},
 		[
 			reloadCart,
