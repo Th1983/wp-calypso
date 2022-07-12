@@ -29,7 +29,7 @@ export interface PendingPageRedirectOptions {
  */
 export function redirectThroughPending(
 	url: string,
-	options: Pick< PendingPageRedirectOptions, 'siteSlug' | 'orderId' >
+	options: Omit< PendingPageRedirectOptions, 'urlType' >
 ): void {
 	if ( ! isRelativeUrl( url ) ) {
 		return absoluteRedirectThroughPending( url, options );
@@ -72,7 +72,7 @@ function isRelativeUrl( url: string ): boolean {
  */
 export function relativeRedirectThroughPending(
 	url: string,
-	options: Pick< PendingPageRedirectOptions, 'siteSlug' | 'orderId' >
+	options: Omit< PendingPageRedirectOptions, 'urlType' >
 ): void {
 	if ( typeof window !== 'undefined' ) {
 		window.scrollTo( 0, 0 );
@@ -107,7 +107,7 @@ export function relativeRedirectThroughPending(
  */
 export function absoluteRedirectThroughPending(
 	url: string,
-	options: Pick< PendingPageRedirectOptions, 'siteSlug' | 'orderId' >
+	options: Omit< PendingPageRedirectOptions, 'urlType' >
 ): void {
 	window.location.href = addUrlToPendingPageRedirect( url, {
 		...options,
